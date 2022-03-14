@@ -165,13 +165,28 @@ vacm_save_view(struct vacm_viewEntry *view, const char *token,
 void
 vacm_parse_config_view(const char *token, const char *line)
 {
+#if 0
     struct vacm_viewEntry view;
     struct vacm_viewEntry *vptr;
     char           *viewName = (char *) &view.viewName;
     oid            *viewSubtree = (oid *) & view.viewSubtree;
+#else
+    struct vacm_viewEntry *view;
+    struct vacm_viewEntry *vptr;
+    char           *viewName;
+    oid            *viewSubtree;
+#endif
     u_char         *viewMask;
     size_t          len;
 
+#if 1
+    view = malloc(sizeof(struct vacm_viewEntry));
+    if (view == NULL)
+        return;
+    #define view (*view)
+    viewName = (char *) &view.viewName;
+    viewSubtree = (oid *) & view.viewSubtree;
+#endif
     view.viewStatus = atoi(line);
     line = skip_token_const(line);
     view.viewStorageType = atoi(line);
@@ -190,7 +205,11 @@ vacm_parse_config_view(const char *token, const char *line)
         vacm_createViewEntry(view.viewName, view.viewSubtree,
                              view.viewSubtreeLen);
     if (!vptr) {
+#if 0
         return;
+#else
+        goto cleanup;
+#endif
     }
 
     vptr->viewStatus = view.viewStatus;
@@ -200,6 +219,11 @@ vacm_parse_config_view(const char *token, const char *line)
     vptr->viewMaskLen = sizeof(vptr->viewMask);
     line =
         read_config_read_octet_string(line, &viewMask, &vptr->viewMaskLen);
+#if 1
+  cleanup:
+    #undef view
+    free(view);
+#endif
 }
 
 /*

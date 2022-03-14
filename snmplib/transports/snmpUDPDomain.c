@@ -298,6 +298,7 @@ netsnmp_udp_parse_security(const char *token, char *param)
 {
     /** copy_nword does null term, so we need vars of max size + 2. */
     /** (one for null, one to detect param too long */
+#if 0
     char            secName[VACMSTRINGLEN]; /* == VACM_MAX_STRING + 2 */
     char            contextName[VACMSTRINGLEN];
     char            community[COMMUNITY_MAX_LEN + 2];
@@ -306,57 +307,123 @@ netsnmp_udp_parse_security(const char *token, char *param)
     struct in_addr  network, mask;
     int             negate;
     int rc;
+#else
+    char            *secName;
+    char            *contextName;
+    char            *community;
+    char            *source;
+    char            *sourcep;
+    struct in_addr  network, mask;
+    int             negate;
+    int rc;
+
+    secName = malloc(VACMSTRINGLEN * 2 + COMMUNITY_MAX_LEN + 2 + 271);
+    if (secName == NULL) {
+        config_perror("out of memory");
+        return;
+    }
+    contextName = secName + VACMSTRINGLEN;
+    community = contextName + VACMSTRINGLEN;
+    source = community + COMMUNITY_MAX_LEN + 2;
+#endif
 
     /*
      * Get security, source address/netmask and community strings.
      */
 
+#if 0
     param = copy_nword( param, secName, sizeof(secName));
+#else
+    param = copy_nword( param, secName, VACMSTRINGLEN);
+#endif
     if (strcmp(secName, "-Cn") == 0) {
         if (!param) {
             config_perror("missing CONTEXT_NAME parameter");
+#if 1
+            free(secName);
+#endif
             return;
         }
+#if 0
         param = copy_nword( param, contextName, sizeof(contextName));
+#else
+        param = copy_nword( param, contextName, VACMSTRINGLEN);
+#endif
         if (!param) {
             config_perror("missing NAME parameter");
+#if 1
+            free(secName);
+#endif
             return;
         }
+#if 0
         param = copy_nword( param, secName, sizeof(secName));
+#else
+        param = copy_nword( param, secName, VACMSTRINGLEN);
+#endif
     } else
         contextName[0] = '\0';
 
     if (secName[0] == '\0') {
         config_perror("empty NAME parameter");
+#if 1
+        free(secName);
+#endif
         return;
     }
 
     if (!param) {
         config_perror("missing SOURCE parameter");
+#if 1
+        free(secName);
+#endif
         return;
     }
+#if 0
     param = copy_nword( param, source, sizeof(source));
+#else
+    param = copy_nword( param, source, 271);
+#endif
     if (source[0] == '\0') {
         config_perror("empty SOURCE parameter");
+#if 1
+        free(secName);
+#endif
         return;
     }
     if (strncmp(source, EXAMPLE_NETWORK, strlen(EXAMPLE_NETWORK)) == 0) {
         config_perror("example config NETWORK not properly configured");
+#if 1
+        free(secName);
+#endif
         return;
     }
 
     if (!param) {
         config_perror("missing COMMUNITY parameter");
+#if 1
+        free(secName);
+#endif
         return;
     }
+#if 0
     param = copy_nword( param, community, sizeof(community));
+#else
+    param = copy_nword( param, community, COMMUNITY_MAX_LEN + 2);
+#endif
     if (community[0] == '\0') {
         config_perror("empty COMMUNITY parameter");
+#if 1
+        free(secName);
+#endif
         return;
     }
     if ((strlen(community) + 1) == sizeof(EXAMPLE_COMMUNITY) &&
         memcmp(community, EXAMPLE_COMMUNITY, sizeof(EXAMPLE_COMMUNITY)) == 0) {
         config_perror("example config COMMUNITY not properly configured");
+#if 1
+        free(secName);
+#endif
         return;
     }
 
@@ -387,6 +454,9 @@ netsnmp_udp_parse_security(const char *token, char *param)
             int ret = netsnmp_gethostbyname_v4(sourcep, &network.s_addr);
             if (ret < 0) {
                 config_perror("cannot resolve IPv4 source hostname");
+#if 1
+                free(secName);
+#endif
                 return;
             }
         }
@@ -406,18 +476,27 @@ netsnmp_udp_parse_security(const char *token, char *param)
                     mask.s_addr = 0;
                 else {
                     config_perror("bad mask length");
+#if 1
+                    free(secName);
+#endif
                     return;
                 }
             }
             /* Try to interpret mask as a dotted quad. */
             else if (inet_pton(AF_INET, strmask, &mask) == 0) {
                 config_perror("bad mask");
+#if 1
+                free(secName);
+#endif
                 return;
             }
 
             /* Check that the network and mask are consistent. */
             if (network.s_addr & ~mask.s_addr) {
                 config_perror("source/mask mismatch");
+#if 1
+                free(secName);
+#endif
                 return;
             }
         }
@@ -448,6 +527,9 @@ netsnmp_udp_parse_security(const char *token, char *param)
         default:
             config_perror("unexpected error; could not create com2SecEntry");
     }
+#if 1
+    free(secName);
+#endif
 }
 
 void
@@ -642,6 +724,10 @@ netsnmp_udp_ctor(void)
     udpDomain.name = netsnmpUDPDomain;
     udpDomain.name_length = netsnmpUDPDomain_len;
     udpDomain.prefix = (const char**)calloc(2, sizeof(char *));
+#if 1
+    if (udpDomain.prefix == NULL)
+        return;
+#endif
     udpDomain.prefix[0] = "udp";
 
     udpDomain.f_create_from_tstring_new = netsnmp_udp_create_tstring;

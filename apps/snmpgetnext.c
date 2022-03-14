@@ -177,8 +177,16 @@ main(int argc, char *argv[])
         } else
             snmp_add_null_var(pdu, name, name_length);
     }
+#if 0
     if (failures)
+#else
+    if (failures) {
+        snmp_free_pdu(pdu);
+#endif
         goto close_session;
+#if 1
+    }
+#endif
 
     exitval = 0;
 
@@ -234,6 +242,16 @@ close_session:
     snmp_close(ss);
 
 out:
+#if 1
+    free(session.community);
+    free(session.securityPrivLocalKey);
+    free(session.securityAuthLocalKey);
+    free(session.securityPrivProto);
+    free(session.securityAuthProto);
+    free(session.securityEngineID);
+    free(session.contextEngineID);
+    free(session.localname);
+#endif
     SOCK_CLEANUP;
     return exitval;
 }

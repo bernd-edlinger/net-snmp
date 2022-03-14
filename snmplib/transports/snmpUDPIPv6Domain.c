@@ -988,6 +988,10 @@ netsnmp_udpipv6_ctor(void)
     udp6Domain.f_create_from_tspec       = netsnmp_udp6_create_tspec;
     udp6Domain.f_create_from_ostring     = netsnmp_udp6_create_ostring;
     udp6Domain.prefix = (const char**)calloc(5, sizeof(char *));
+#if 1
+    if (udp6Domain.prefix == NULL)
+        return;
+#endif
     udp6Domain.prefix[0] = "udp6";
     udp6Domain.prefix[1] = "ipv6";
     udp6Domain.prefix[2] = "udpv6";

@@ -3253,6 +3253,10 @@ usm_handle_report(struct session_list *slp,
 
             pdu->flags |= UCD_MSG_FLAG_FORCE_PDU_COPY;
             pdu2 = snmp_clone_pdu(pdu);
+#if 1
+            if (pdu2 == NULL)
+                break;
+#endif
             pdu->flags = pdu2->flags = flags;
             snmpv3_make_report(pdu2, result);
             if (0 == snmp_sess_send(slp, pdu2)) {

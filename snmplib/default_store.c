@@ -375,7 +375,11 @@ void
 netsnmp_ds_handle_config(const char *token, char *line)
 {
     netsnmp_ds_read_config *drsp;
+#if 0
     char            buf[SNMP_MAXBUF];
+#else
+    char            buf[80];
+#endif
     char           *value, *endptr;
     int             itmp;
     char           *st;

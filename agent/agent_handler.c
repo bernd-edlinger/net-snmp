@@ -1224,7 +1224,11 @@ static int      doneit = 0;
 void
 parse_injectHandler_conf(const char *token, char *cptr)
 {
+#if 0
     char            handler_to_insert[256], reg_name[256];
+#else
+    char            handler_to_insert[80], reg_name[80];
+#endif
     subtree_context_cache *stc;
     netsnmp_mib_handler *handler;
 

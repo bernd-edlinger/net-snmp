@@ -312,7 +312,11 @@ netsnmp_create_v1v2_notification_session(const char *sink, const char* sinkport,
                                          const char* profile)
 {
     netsnmp_transport *t;
+#if 0
     netsnmp_session session, *sesp;
+#else
+    netsnmp_session *session, *sesp;
+#endif
     netsnmp_tdomain_spec tspec;
     char                 tmp[SPRINT_MAX_LEN];
     int                  rc;
@@ -325,6 +329,12 @@ netsnmp_create_v1v2_notification_session(const char *sink, const char* sinkport,
         return NULL;
     }
 
+#if 1
+    session = malloc(sizeof(netsnmp_session));
+    if (session == NULL)
+        return NULL;
+    #define session (*session)
+#endif
     snmp_sess_init(&session);
     session.version = version;
     if (com) {
@@ -375,8 +385,15 @@ netsnmp_create_v1v2_notification_session(const char *sink, const char* sinkport,
         snmp_sess_perror("snmpd: netsnmp_create_notification_session",
                          &session);
         /* transport freed by snmp_add */
+#if 1
+        #undef session
+        free(session);
+#endif
         return NULL;
     }
+#if 1
+    free(session);
+#endif
 
     rc = netsnmp_add_notification_session(sesp, pdutype,
                                           (pdutype == SNMP_MSG_INFORM),
@@ -610,7 +627,11 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu )
 {
     netsnmp_pdu           *template_v2pdu;
     netsnmp_variable_list *var;
+#if 0
     oid                    enterprise[MAX_OID_LEN];
+#else
+    oid                   *enterprise;
+#endif
     size_t                 enterprise_len;
 
     /*
@@ -632,7 +653,18 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu )
      *   or constructing this from the PDU enterprise & specific trap fields
      */
     var = NULL;
+#if 0
     enterprise_len = OID_LENGTH(enterprise);
+#else
+    enterprise = malloc(MAX_OID_LEN*sizeof(oid));
+    if (enterprise == NULL) {
+        snmp_log(LOG_WARNING,
+                 "send_trap: out of memory\n");
+        snmp_free_pdu(template_v2pdu);
+        return NULL;
+    }
+    enterprise_len = MAX_OID_LEN;
+#endif
     if ((netsnmp_build_trap_oid(template_v1pdu, enterprise, &enterprise_len)
          != SNMPERR_SUCCESS) ||
         !snmp_varlist_add_variable( &var,
@@ -642,8 +674,14 @@ convert_v1pdu_to_v2( netsnmp_pdu* template_v1pdu )
         snmp_log(LOG_WARNING,
                  "send_trap: failed to insert copied snmpTrapOID varbind\n");
         snmp_free_pdu(template_v2pdu);
+#if 1
+        free(enterprise);
+#endif
         return NULL;
     }
+#if 1
+    free(enterprise);
+#endif
     var->next_variable        = template_v2pdu->variables;
     template_v2pdu->variables = var;
 
@@ -1527,7 +1565,11 @@ netsnmp_create_v3user_notification_session(const char *dest, const char *user,
                                            const char *notif_tag,
                                            const char* notif_profile)
 {
+#if 0
     netsnmp_session    session, *ss = NULL;
+#else
+    netsnmp_session   *session, *ss = NULL;
+#endif
     struct usmUser    *usmUser;
     netsnmp_tdomain_spec tspec;
     netsnmp_transport *transport;
@@ -1562,6 +1604,12 @@ netsnmp_create_v3user_notification_session(const char *dest, const char *user,
         return NULL;
     }
 
+#if 1
+    session = malloc(sizeof(netsnmp_session));
+    if (session == NULL)
+        return NULL;
+    #define session (*session)
+#endif
     snmp_sess_init(&session);
 
     session.version = SNMP_VERSION_3;
@@ -1662,6 +1710,10 @@ netsnmp_create_v3user_notification_session(const char *dest, const char *user,
     /** free any allocated mem in session */
     SNMP_FREE(session.securityAuthProto);
     SNMP_FREE(session.securityPrivProto);
+#if 1
+    #undef session
+    free(session);
+#endif
 
     return ss;
 }
@@ -1669,15 +1721,30 @@ netsnmp_create_v3user_notification_session(const char *dest, const char *user,
 void
 snmpd_parse_config_trapsess(const char *word, char *cptr)
 {
+#if 0
     char           *argv[MAX_ARGS], *cp = cptr;
+#else
+    char           **argv, *cp = cptr;
+#endif
     char           *profile = NULL, *name = NULL, *tag = NULL;
     int             argn, rc;
+#if 0
     netsnmp_session session, *ss;
+#else
+    netsnmp_session *session, *ss;
+#endif
     netsnmp_transport *transport;
     size_t          len;
     char            tmp[SPRINT_MAX_LEN];
     char           *clientaddr_save = NULL;
 
+#if 1
+    argv = malloc(sizeof(char *) * MAX_ARGS + sizeof(netsnmp_session));
+    if (argv == NULL)
+        return;
+    session = (netsnmp_session *)(argv + MAX_ARGS);
+    #define session (*session)
+#endif
     /*
      * inform or trap?  default to trap 
      */
@@ -1790,12 +1857,27 @@ snmpd_parse_config_trapsess(const char *word, char *cptr)
                                      ss->version, name, tag, profile);
 
   cleanup:
+#if 0
     if (session.securityEngineIDLen > 0)
         SNMP_FREE(session.securityEngineID);
+#else
+    SNMP_FREE(session.community);
+    SNMP_FREE(session.securityPrivLocalKey);
+    SNMP_FREE(session.securityAuthLocalKey);
+    SNMP_FREE(session.securityPrivProto);
+    SNMP_FREE(session.securityAuthProto);
+    SNMP_FREE(session.securityEngineID);
+    SNMP_FREE(session.contextEngineID);
+    SNMP_FREE(session.localname);
+#endif
     SNMP_FREE(clientaddr_save);
     SNMP_FREE(profile);
     SNMP_FREE(name);
     SNMP_FREE(tag);
+#if 1
+    #undef session
+    free(argv);
+#endif
 }
 
 #if !defined(NETSNMP_DISABLE_SNMPV1) || !defined(NETSNMP_DISABLE_SNMPV2C)

@@ -640,7 +640,11 @@ netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec)
     const char         *addr = NULL;
     const char * const *spec = NULL;
     int                 any_found = 0;
+#if 0
     char buf[SNMP_MAXPATH];
+#else
+    char buf[80];
+#endif
     char **lspec = NULL;
     char *tokenized_domain = NULL;
 
@@ -716,6 +720,10 @@ netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec)
         const char *cp;
         if ((cp = strchr(str, ':')) != NULL) {
             char* mystring = (char*)malloc(cp + 1 - str);
+#if 1
+            if (mystring == NULL)
+                return NULL;
+#endif
             memcpy(mystring, str, cp - str);
             mystring[cp - str] = '\0';
             addr = cp + 1;
@@ -748,9 +756,19 @@ netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec)
                 const char *cp = default_domain;
                 char *ptr = NULL;
                 tokenized_domain = strdup(default_domain);
+#if 1
+                if (!tokenized_domain)
+                    return NULL;
+#endif
 
                 while (*++cp) if (*cp == ',') commas++;
                 lspec = calloc(commas+2, sizeof(char *));
+#if 1
+                if (!lspec) {
+                    free(tokenized_domain);
+                    return NULL;
+                }
+#endif
                 commas = 1;
                 lspec[0] = strtok_r(tokenized_domain, ",", &ptr);
                 while ((lspec[commas++] = strtok_r(NULL, ",", &ptr)))
@@ -986,8 +1004,20 @@ netsnmp_transport_create_config(const char *key, const char *value)
 {
     netsnmp_transport_config *entry =
         SNMP_MALLOC_TYPEDEF(netsnmp_transport_config);
+#if 1
+    if (!entry)
+        return NULL;
+#endif
     entry->key = strdup(key);
     entry->value = strdup(value);
+#if 1
+    if (!entry->key || !entry->value) {
+        free(entry->key);
+        free(entry->value);
+        SNMP_FREE(entry);
+        return NULL;
+    }
+#endif
     return entry;
 }
 

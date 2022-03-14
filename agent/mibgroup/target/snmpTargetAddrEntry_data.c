@@ -96,8 +96,12 @@ snmpTargetAddrTable_dispose(struct targetAddrTable_struct *reaped)
 
     if (reaped->sess)
         snmp_close(reaped->sess);
+#if 0
     else
         SNMP_FREE(reaped->tAddress);
+#else
+    SNMP_FREE(reaped->tAddress);
+#endif
     SNMP_FREE(reaped->nameData);
     SNMP_FREE(reaped->tagListData);
     SNMP_FREE(reaped->paramsData);

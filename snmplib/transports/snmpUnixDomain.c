@@ -518,6 +518,10 @@ netsnmp_unix_ctor(void)
     unixDomain.name = netsnmp_UnixDomain;
     unixDomain.name_length = sizeof(netsnmp_UnixDomain) / sizeof(oid);
     unixDomain.prefix = (const char**)calloc(2, sizeof(char *));
+#if 1
+    if (unixDomain.prefix == NULL)
+        return;
+#endif
     unixDomain.prefix[0] = "unix";
 
     unixDomain.f_create_from_tstring_new = netsnmp_unix_create_tstring;

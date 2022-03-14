@@ -80,13 +80,26 @@ int
 netsnmp_register_scalar(netsnmp_handler_registration *reginfo)
 {
     netsnmp_mib_handler *h1, *h2;
+#if 1
+    oid *new_rootoid;
+#endif
 
     /*
      * Extend the registered OID with space for the instance subid
      * (but don't extend the length just yet!)
      */
+#if 0
     reginfo->rootoid = (oid*)realloc(reginfo->rootoid,
                                     (reginfo->rootoid_len+1) * sizeof(oid) );
+#else
+    new_rootoid = (oid*)realloc(reginfo->rootoid,
+                                (reginfo->rootoid_len+1) * sizeof(oid) );
+    if (new_rootoid == NULL) {
+        netsnmp_handler_registration_free(reginfo);
+        return MIB_REGISTRATION_FAILED;
+    }
+    reginfo->rootoid = new_rootoid;
+#endif
     reginfo->rootoid[ reginfo->rootoid_len ] = 0;
 
     h1 = netsnmp_get_instance_handler();

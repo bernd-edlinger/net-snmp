@@ -11,6 +11,7 @@ create_word_array_helper(const char* cptr, size_t idx, char* tmp, size_t tmplen)
 {
     char* item;
     char** res;
+#if 0
     cptr = copy_nword_const(cptr, tmp, tmplen);
     item = strdup(tmp);
     if (cptr)
@@ -20,6 +21,37 @@ create_word_array_helper(const char* cptr, size_t idx, char* tmp, size_t tmplen)
         res[idx + 1] = NULL;
     }
     res[idx] = item;
+#else
+    char** new;
+    size_t alloc;
+    alloc = idx + 2;
+    res = calloc(alloc, sizeof(char*));
+    if (!res)
+        return NULL;
+    do {
+        cptr = copy_nword_const(cptr, tmp, tmplen);
+        item = strdup(tmp);
+        if (!item) {
+            while (idx-- != 0)
+                free(res[idx]);
+            free(res);
+            return NULL;
+        }
+        res[idx++] = item;
+        if (alloc == idx) {
+            alloc = alloc * 2;
+            new = realloc(res, sizeof(char*) * alloc);
+            if (!new) {
+                while (idx-- != 0)
+                    free(res[idx]);
+                free(res);
+                return NULL;
+            }
+            res = new;
+        }
+    } while (cptr);
+    res[idx] = NULL;
+#endif
     return res;
 }
 
@@ -28,7 +60,14 @@ create_word_array(const char* cptr)
 {
     size_t tmplen = strlen(cptr);
     char* tmp = (char*)malloc(tmplen + 1);
+#if 0
     char** res = create_word_array_helper(cptr, 0, tmp, tmplen + 1);
+#else
+    char** res;
+    if (!tmp)
+        return NULL;
+    res = create_word_array_helper(cptr, 0, tmp, tmplen + 1);
+#endif
     free(tmp);
     return res;
 }
@@ -73,7 +112,17 @@ netsnmp_register_default_domain(const char* application, const char* domain)
       }
     } else {
 	run = SNMP_MALLOC_STRUCT(netsnmp_lookup_domain);
+#if 1
+        if (run == NULL)
+            return 0;
+#endif
 	run->application = strdup(application);
+#if 1
+        if (run->application == NULL) {
+            free(run);
+            return 0;
+        }
+#endif
 	run->userDomain = NULL;
 	if (prev) {
 	    run->next = prev->next;
@@ -142,7 +191,17 @@ netsnmp_register_user_domain(const char* token, char* cptr)
 	}
     } else {
 	run = SNMP_MALLOC_STRUCT(netsnmp_lookup_domain);
+#if 1
+        if (run == NULL)
+            return;
+#endif
 	run->application = strdup(application);
+#if 1
+        if (run->application == NULL) {
+            free(run); 
+            return;
+        }
+#endif
 	run->domain = NULL;
 	if (prev) {
 	    run->next = prev->next;
@@ -261,8 +320,20 @@ netsnmp_register_default_target(const char* application, const char* domain,
       }
     } else {
 	run = SNMP_MALLOC_STRUCT(netsnmp_lookup_target);
+#if 1
+        if (run == NULL)
+            return 0;
+#endif
 	run->application = strdup(application);
 	run->domain = strdup(domain);
+#if 1
+        if (run->application == NULL || run->domain == NULL) {
+            free(run->application);
+            free(run->domain);
+            free(run);
+            return 0;
+        }
+#endif
 	run->userTarget = NULL;
 	if (prev) {
 	    run->next = prev->next;
@@ -313,6 +384,10 @@ netsnmp_register_user_target(const char* token, char* cptr)
     char* target = (char*)malloc(len);
     int i = 0;
 
+#if 1
+    if (!application || !domain || !target)
+        goto done;
+#endif
     {
 	char* cp = copy_nword(cptr, application, len);
         if (cp == NULL) {
@@ -345,8 +420,20 @@ netsnmp_register_user_target(const char* token, char* cptr)
 	}
     } else {
 	run = SNMP_MALLOC_STRUCT(netsnmp_lookup_target);
+#if 1
+        if (run == NULL)
+            goto done;
+#endif
 	run->application = strdup(application);
 	run->domain = strdup(domain);
+#if 1
+        if (run->application == NULL || run->domain == NULL) {
+            free(run->application);
+            free(run->domain);
+            free(run);
+            goto done;
+        }
+#endif
 	run->target = NULL;
 	if (prev) {
 	    run->next = prev->next;

@@ -158,8 +158,15 @@ initialize_table_hrSWInstalledTable(void)
     if (cache)
         netsnmp_cache_free(cache);
 
+#if 0
     if (table_info)
         netsnmp_table_registration_info_free(table_info);
+#else
+    if (table_info) {
+        netsnmp_table_registration_info_free(table_info);
+        table_info = NULL;
+    }
+#endif
 
     if (container)
         CONTAINER_FREE(container);

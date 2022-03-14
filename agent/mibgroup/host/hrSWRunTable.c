@@ -140,8 +140,15 @@ initialize_table_hrSWRunTable(void)
     if (handler)
         netsnmp_handler_free(handler);
 
+#if 0
     if (table_info)
         netsnmp_table_registration_info_free(table_info);
+#else
+    if (table_info) {
+        netsnmp_table_registration_info_free(table_info);
+        table_info = NULL;
+    }
+#endif
 
     if (reg) 
         netsnmp_handler_registration_free(reg);

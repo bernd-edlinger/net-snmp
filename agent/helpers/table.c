@@ -429,6 +429,9 @@ table_helper_handler(netsnmp_mib_handler *handler,
         incomplete = 0;
         tbl_req_info = netsnmp_extract_table_info(request);
         if (NULL == tbl_req_info) {
+#if 1
+            netsnmp_data_list *list_data;
+#endif
             tbl_req_info = SNMP_MALLOC_TYPEDEF(netsnmp_table_request_info);
             if (tbl_req_info == NULL) {
                 table_helper_cleanup(reqinfo, request,
@@ -438,11 +441,25 @@ table_helper_handler(netsnmp_mib_handler *handler,
             tbl_req_info->reg_info = tbl_info;
             tbl_req_info->indexes = snmp_clone_varbind(tbl_info->indexes);
             tbl_req_info->number_indexes = 0;       /* none yet */
+#if 0
             netsnmp_request_add_list_data(request,
                                           netsnmp_create_data_list
                                           (TABLE_HANDLER_NAME,
                                            (void *) tbl_req_info,
                                            table_data_free_func));
+#else
+            list_data = netsnmp_create_data_list (TABLE_HANDLER_NAME,
+                                                  (void *) tbl_req_info,
+                                                  table_data_free_func);
+            if (list_data == NULL) {
+                snmp_free_varbind(tbl_req_info->indexes);
+                SNMP_FREE(tbl_req_info);
+                table_helper_cleanup(reqinfo, request,
+                                     SNMP_ERR_GENERR);
+                continue;
+            }
+            netsnmp_request_add_list_data(request, list_data);
+#endif
         } else {
             DEBUGMSGTL(("helper:table", "  using existing tbl_req_info\n "));
         }

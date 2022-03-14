@@ -203,6 +203,9 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
                 free(ebuf);
                 return (-1);
             }
+#if 1
+            free(session->securityEngineID);
+#endif
             session->securityEngineID = ebuf;
             session->securityEngineIDLen = eout_len;
             break;
@@ -227,6 +230,9 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
                 free(ebuf);
                 return (-1);
             }
+#if 1
+            free(session->contextEngineID);
+#endif
             session->contextEngineID = ebuf;
             session->contextEngineIDLen = eout_len;
             break;
@@ -266,8 +272,18 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
     case 'a': {
         int auth_type = usm_lookup_auth_type(optarg);
         if (auth_type > 0) {
+#if 0
             session->securityAuthProto =
                 sc_get_auth_oid(auth_type, &session->securityAuthProtoLen);
+#else
+            const oid *auth_proto;
+
+            auth_proto = sc_get_auth_oid(auth_type,
+                                         &session->securityAuthProtoLen);
+            free(session->securityAuthProto);
+            session->securityAuthProto = snmp_duplicate_objid(auth_proto,
+                                             session->securityAuthProtoLen);
+#endif
          } else {
             fprintf(stderr,
                     "Invalid authentication protocol specified after -3a flag: %s\n",
@@ -277,7 +293,13 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
     }
         break;
 
+#if 0
     case 'x':
+#else
+    case 'x': {
+        const oid *priv_proto;
+
+#endif
         priv_type = usm_lookup_priv_type(optarg);
         if (priv_type < 0) {
             fprintf(stderr,
@@ -285,11 +307,24 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
                     optarg);
             return (-1);
         }
+#if 0
         session->securityPrivProto =
             sc_get_priv_oid(priv_type, &session->securityPrivProtoLen);
+#else
+        priv_proto = sc_get_priv_oid(priv_type, &session->securityPrivProtoLen);
+        free(session->securityPrivProto);
+        session->securityPrivProto = snmp_duplicate_objid(priv_proto,
+                                         session->securityPrivProtoLen);
+#endif
         break;
+#if 1
+    }
+#endif
 
     case 'A':
+#if 1
+        free(*Apsz);
+#endif
         *Apsz = strdup(optarg);
         if (NULL == *Apsz) {
             fprintf(stderr, "malloc failure processing -%c flag.\n",
@@ -301,6 +336,9 @@ snmpv3_parse_arg(int arg, char *optarg, netsnmp_session *session, char **Apsz,
         break;
 
     case 'X':
+#if 1
+        free(*Xpsz);
+#endif
         *Xpsz = strdup(optarg);
         if (NULL == *Xpsz) {
             fprintf(stderr, "malloc failure processing -%c flag.\n",
@@ -947,6 +985,10 @@ get_enginetime_alarm(unsigned int regnum, void *clientargs)
 void
 init_snmpv3(const char *type)
 {
+#if 1
+    char *dup;
+#endif
+
     netsnmp_get_monotonic_clock(&snmpv3starttime);
 
     if (!type)
@@ -965,8 +1007,16 @@ init_snmpv3(const char *type)
     /*
      * we need to be called back later 
      */
+#if 0
     snmp_register_callback(SNMP_CALLBACK_LIBRARY, SNMP_CALLBACK_STORE_DATA,
                            snmpv3_store, (void *) strdup(type));
+#else
+    dup = strdup(type);
+    if (dup != NULL &&
+        snmp_register_callback(SNMP_CALLBACK_LIBRARY, SNMP_CALLBACK_STORE_DATA,
+                               snmpv3_store, (void *) dup) != SNMPERR_SUCCESS)
+        free(dup);
+#endif
 
     /*
      * initialize submodules 
@@ -1048,7 +1098,11 @@ init_snmpv3_post_config(int majorid, int minorid, void *serverarg,
 
     c_engineID = snmpv3_generate_engineID(&engineIDLen);
 
+#if 0
     if (engineIDLen == 0 || !c_engineID) {
+#else
+    if (!c_engineID || engineIDLen == 0) {
+#endif
         /*
          * Somethine went wrong - help! 
          */

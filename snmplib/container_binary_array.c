@@ -493,7 +493,12 @@ netsnmp_binary_array_insert_before(netsnmp_container *c, size_t index,
      /*
       * check if we need to resize the array
       */
+#if 0
     _ba_resize_check(t);
+#else
+    if (_ba_resize_check(t) < 0)
+        return -1;
+#endif
 
     /*
      * shift array
@@ -802,6 +807,12 @@ netsnmp_container_get_binary_array(void)
     }
 
     c->container_data = netsnmp_binary_array_initialize();
+#if 1
+    if (c->container_data == NULL) {
+        SNMP_FREE(c);
+        return NULL;
+    }
+#endif
 
     /*
      * NOTE: CHANGES HERE MUST BE DUPLICATED IN duplicate AS WELL!!

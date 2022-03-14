@@ -208,6 +208,13 @@ internal_register_config_handler(const char *type_param,
         }
 
         (*ctmp)->fileHeader = strdup(type);
+#if 1
+        if (!(*ctmp)->fileHeader) {
+            free(*ctmp);
+            *ctmp = NULL;
+            return NULL;
+        }
+#endif
         DEBUGMSGTL(("9:read_config:type", "new type %s\n", type));
     }
 
@@ -232,6 +239,13 @@ internal_register_config_handler(const char *type_param,
 
         (*ltmp)->config_time = when;
         (*ltmp)->config_token = strdup(token);
+#if 1
+        if (!(*ltmp)->config_token) {
+            free(*ltmp);
+            *ltmp = NULL;
+            return NULL;
+        }
+#endif
         if (help != NULL)
             (*ltmp)->help = strdup(help);
     }
@@ -1245,6 +1259,10 @@ read_config_files_in_path(const char *path, struct config_files *ctmp,
         return SNMPERR_GENERR;
 
     envconfpath = strdup(path);
+#if 1
+    if (NULL == envconfpath)
+        return SNMPERR_GENERR;
+#endif
 
     DEBUGMSGTL(("read_config:path", " config path used for %s:%s (persistent path:%s)\n",
                 ctmp->fileHeader, envconfpath, perspath));
@@ -1394,6 +1412,10 @@ read_config_files_of_type(int when, struct config_files *ctmp)
          * keyword transforms the perspath pointer into a dangling pointer.
          */
         perspath = strdup(get_persistent_directory());
+#if 1
+        if (perspath == NULL)
+            return SNMPERR_GENERR;
+#endif
         if (envconfpath == NULL) {
             /*
              * read just the config files (no persistent stuff), since
@@ -1405,6 +1427,10 @@ read_config_files_of_type(int when, struct config_files *ctmp)
                 ret = SNMPERR_SUCCESS;
             free(perspath);
             perspath = strdup(get_persistent_directory());
+#if 1
+            if (perspath == NULL)
+                return SNMPERR_GENERR;
+#endif
             if ( read_config_files_in_path(perspath, ctmp, when, perspath,
                                       persfile) == SNMPERR_SUCCESS )
                 ret = SNMPERR_SUCCESS;
@@ -1716,6 +1742,10 @@ config_vlog(int level, const char *levelmsg, const char *str, va_list args)
 		       curfilename, linecount, levelmsg, str);
     if (len >= (int)sizeof(tmpbuf)) {
 	buf = (char*)malloc(len + 1);
+#if 1
+        if (buf == NULL)
+            return;
+#endif
 	sprintf(buf, "%s: line %d: %s: %s\n",
 		curfilename, linecount, levelmsg, str);
     }
@@ -2065,7 +2095,11 @@ read_config_read_octet_string_const(const char *readfrom, u_char ** str,
          * malloc string space if needed (including NULL terminator) 
          */
         if (*str == NULL) {
+#if 0
             char            buf[SNMP_MAXBUF];
+#else
+            char            buf[80];
+#endif
             readfrom = copy_nword_const(readfrom, buf, sizeof(buf));
 
             *len = strlen(buf);

@@ -107,6 +107,12 @@ netsnmp_register_old_api(const char *moduleName,
 
 	vp = netsnmp_duplicate_variable((const struct variable *)
 					((const char *) var + varsize * i));
+#if 1
+        if (vp == NULL) {
+            SNMP_FREE(reginfo);
+            return SNMP_ERR_GENERR;
+        }
+#endif
 
         reginfo->handler = get_old_api_handler();
         reginfo->handlerName = strdup(moduleName);
@@ -271,10 +277,18 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
 {
 
 #if MIB_CLIENTS_ARE_EVIL
+#if 0
     oid             save[MAX_OID_LEN];
+#else
+    oid            *save;
+#endif
     size_t          savelen = 0;
 #endif
+#if 0
     struct variable compat_var, *cvp = &compat_var;
+#else
+    struct variable *cvp;
+#endif
     int             exact = 1;
     int             status;
 
@@ -285,7 +299,18 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
     WriteMethod    *write_method = NULL;
     size_t          len;
     size_t          tmp_len;
+#if 0
     oid             tmp_name[MAX_OID_LEN];
+#else
+    oid            *tmp_name;
+
+    save = malloc(sizeof(oid) * MAX_OID_LEN * 2 + sizeof(struct variable));
+    if (!save)
+        return SNMP_ERR_GENERR;
+
+    tmp_name = save + MAX_OID_LEN;
+    cvp = (struct variable *)(tmp_name + MAX_OID_LEN);
+#endif
 
     vp = (struct variable *) handler->myvoid;
 
@@ -327,7 +352,11 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
                 memcpy(tmp_name, requests->requestvb->name, tmp_len);
                 /** clear the rest of tmp_name to keep valgrind happy */
                 memset(&tmp_name[requests->requestvb->name_length], 0x0,
+#if 0
                        sizeof(tmp_name)-tmp_len);
+#else
+                       sizeof(oid)*MAX_OID_LEN-tmp_len);
+#endif
                 tmp_len = requests->requestvb->name_length;
                 access = (*(vp->findVar)) (cvp, tmp_name, &tmp_len,
                                            exact, &len, &write_method);
@@ -385,9 +414,17 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
                 break;
 
             cacheptr = SNMP_MALLOC_TYPEDEF(netsnmp_old_api_cache);
+#if 0
             if (!cacheptr)
+#else
+            if (!cacheptr) {
+                free(save);
+#endif
                 return netsnmp_set_request_error(reqinfo, requests,
                                                  SNMP_ERR_RESOURCEUNAVAILABLE);
+#if 1
+           }
+#endif
             cacheptr->data = access;
             cacheptr->write_method = write_method;
             write_method = NULL;
@@ -415,6 +452,9 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
                 /*
                  * WWW: try to set ourselves if possible? 
                  */
+#if 1
+                free(save);
+#endif
                 return netsnmp_set_request_error(reqinfo, requests,
                                                  SNMP_ERR_NOTWRITABLE);
             }
@@ -445,6 +485,9 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
             break;
         }
     }
+#if 1
+    free(save);
+#endif
     return SNMP_ERR_NOERROR;
 }
 

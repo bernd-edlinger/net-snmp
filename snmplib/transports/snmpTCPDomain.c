@@ -343,6 +343,10 @@ netsnmp_tcp_ctor(void)
     tcpDomain.name = netsnmp_snmpTCPDomain;
     tcpDomain.name_length = sizeof(netsnmp_snmpTCPDomain) / sizeof(oid);
     tcpDomain.prefix = (const char **)calloc(2, sizeof(char *));
+#if 1
+    if (tcpDomain.prefix == NULL)
+        return;
+#endif
     tcpDomain.prefix[0] = "tcp";
 
     tcpDomain.f_create_from_tstring_new = netsnmp_tcp_create_tstring;

@@ -51,6 +51,9 @@ netsnmp_register_null_context(oid * loc, size_t loc_len,
         }
     } else {
         snmp_log(LOG_ERR,"null context allocation failure\n");
+#if 1
+        SNMP_FREE(loc);
+#endif
         return MIB_REGISTRATION_FAILED;
     }
     return netsnmp_register_handler(reginfo);

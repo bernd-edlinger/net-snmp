@@ -1362,6 +1362,12 @@ snmpv3_probe_contextEngineID_rfc5343(struct session_list *slp,
     /* don't require a securityName */
     if (session->securityName) {
         pdu->securityName = strdup(session->securityName);
+#if 1
+        if (pdu->securityName == NULL) {
+            snmp_free_pdu(pdu);
+            return SNMP_ERR_GENERR;
+        }
+#endif
         pdu->securityNameLen = strlen(pdu->securityName);
     }
     pdu->securityLevel = SNMP_SEC_LEVEL_NOAUTH;
@@ -2267,6 +2273,12 @@ snmpv3_build(u_char ** pkt, size_t * pkt_len, size_t * offset,
         } else {
             pdu->securityName = strdup("");
             session->securityName = strdup("");
+#if 1
+            if (pdu->securityName == NULL || session->securityName == NULL) {
+                session->s_snmp_errno = SNMPERR_GENERR;
+                return -1;
+            }
+#endif
         }
     }
     if (pdu->securityLevel == 0) {
@@ -2728,7 +2740,11 @@ snmpv3_packet_build(netsnmp_session * session, netsnmp_pdu *pdu,
 {
     u_char         *global_data, *sec_params, *spdu_hdr_e;
     size_t          global_data_len, sec_params_len;
+#if 0
     u_char          spdu_buf[SNMP_MAX_MSG_SIZE];
+#else
+    u_char         *spdu_buf;
+#endif
     size_t          spdu_buf_len, spdu_len;
     u_char         *cp;
     int             result;
@@ -2750,29 +2766,52 @@ snmpv3_packet_build(netsnmp_session * session, netsnmp_pdu *pdu,
     /*
      * build a scopedPDU structure into spdu_buf
      */
+#if 0
     spdu_buf_len = sizeof(spdu_buf);
+#else
+    spdu_buf = malloc(SNMP_MAX_MSG_SIZE);
+    if (spdu_buf == NULL)
+        return -1;
+    spdu_buf_len = SNMP_MAX_MSG_SIZE;
+    result = -1;
+#endif
     DEBUGDUMPSECTION("send", "ScopedPdu");
     cp = snmpv3_scopedPDU_header_build(pdu, spdu_buf, &spdu_buf_len,
                                        &spdu_hdr_e);
     if (cp == NULL)
+#if 0
         return -1;
+#else
+        goto err;
+#endif
 
     /*
      * build the PDU structure onto the end of spdu_buf 
      */
     DEBUGPRINTPDUTYPE("send", ((pdu_data) ? *pdu_data : 0x00));
     if (pdu_data) {
+#if 0
         if (cp + pdu_data_len > spdu_buf + sizeof(spdu_buf)) {
             snmp_log(LOG_ERR, "%s: PDU too big (%" NETSNMP_PRIz "d > %" NETSNMP_PRIz "d)\n",
                      NETSNMP_FUNCTION, pdu_data_len, sizeof(spdu_buf));
             return -1;
+#else
+        if (pdu_data_len > spdu_buf + SNMP_MAX_MSG_SIZE - cp) {
+            snmp_log(LOG_ERR, "%s: PDU too big (%" NETSNMP_PRIz "d > %" NETSNMP_PRIz "d)\n",
+                     NETSNMP_FUNCTION, pdu_data_len, spdu_buf + SNMP_MAX_MSG_SIZE - cp);
+            goto err;
+#endif
         }
         memcpy(cp, pdu_data, pdu_data_len);
         cp += pdu_data_len;
     } else {
         cp = snmp_pdu_build(pdu, cp, &spdu_buf_len);
         if (cp == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
     }
     DEBUGINDENTADD(-4);         /* return from Scoped PDU */
 
@@ -2780,11 +2819,19 @@ snmpv3_packet_build(netsnmp_session * session, netsnmp_pdu *pdu,
      * re-encode the actual ASN.1 length of the scopedPdu
      */
     spdu_len = cp - spdu_hdr_e; /* length of scopedPdu minus ASN.1 headers */
+#if 0
     spdu_buf_len = sizeof(spdu_buf);
+#else
+    spdu_buf_len = SNMP_MAX_MSG_SIZE;
+#endif
     if (asn_build_sequence(spdu_buf, &spdu_buf_len,
                            (u_char) (ASN_SEQUENCE | ASN_CONSTRUCTOR),
                            spdu_len) == NULL)
+#if 0
         return -1;
+#else
+        goto err;
+#endif
     spdu_len = cp - spdu_buf;   /* the length of the entire scopedPdu */
 
 
@@ -2793,7 +2840,11 @@ snmpv3_packet_build(netsnmp_session * session, netsnmp_pdu *pdu,
      * message - the entire message to transmitted on the wire is returned
      */
     cp = NULL;
+#if 0
     *out_length = sizeof(spdu_buf);
+#else
+    *out_length = SNMP_MAX_MSG_SIZE;
+#endif
     DEBUGDUMPSECTION("send", "SM msgSecurityParameters");
     sptr = find_sec_mod(pdu->securityModel);
     if (sptr && sptr->encode_forward) {
@@ -2830,6 +2881,10 @@ snmpv3_packet_build(netsnmp_session * session, netsnmp_pdu *pdu,
         result = -1;
     }
     DEBUGINDENTLESS();
+#if 1
+err:
+    free(spdu_buf);
+#endif
     return result;
 
 }                               /* end snmpv3_packet_build() */
@@ -3711,11 +3766,23 @@ snmpv3_parse(netsnmp_pdu *pdu,
     u_char          type, msg_flags;
     long            ver, msg_sec_model;
     size_t          max_size_response;
+#if 0
     u_char          tmp_buf[SNMP_MAX_MSG_SIZE];
+#else
+    u_char          tmp_buf[2];
+#endif
     size_t          tmp_buf_len;
+#if 0
     u_char          pdu_buf[SNMP_MAX_MSG_SIZE];
+#else
+    u_char          pdu_buf[128];
+#endif
     u_char         *mallocbuf = NULL;
+#if 0
     size_t          pdu_buf_len = SNMP_MAX_MSG_SIZE;
+#else
+    size_t          pdu_buf_len = sizeof(pdu_buf);
+#endif
     u_char         *sec_params;
     u_char         *msg_data;
     u_char         *cp;
@@ -3857,7 +3924,11 @@ snmpv3_parse(netsnmp_pdu *pdu,
     /*
      * msgFlags 
      */
+#if 0
     tmp_buf_len = SNMP_MAX_MSG_SIZE;
+#else
+    tmp_buf_len = sizeof(tmp_buf);
+#endif
     DEBUGDUMPHEADER("recv", "msgFlags");
     data = asn_parse_string(data, length, &type, tmp_buf, &tmp_buf_len);
     DEBUGINDENTLESS();
@@ -4155,7 +4226,15 @@ snmpv3_make_report(netsnmp_pdu *pdu, int error)
     pdu->errindex = 0;
     SNMP_FREE(pdu->contextName);
     pdu->contextName = strdup("");
+#if 0
     pdu->contextNameLen = strlen(pdu->contextName);
+#else
+    pdu->contextNameLen = 0;
+    if (pdu->securityEngineID == NULL ||
+        pdu->contextEngineID == NULL ||
+        pdu->contextName == NULL)
+        return SNMPERR_GENERR;
+#endif
 
     /*
      * reports shouldn't cache previous data. 
@@ -4589,7 +4668,12 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
     size_t          len;
     size_t          four;
     netsnmp_variable_list *vp = NULL, *vplast = NULL;
+#if 0
     oid             objid[MAX_OID_LEN];
+#else
+    int             vpcount = 0;
+    oid            *objid;
+#endif
     u_char         *p;
 
     /*
@@ -4602,6 +4686,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
     pdu->command = msg_type;
     pdu->flags &= (~UCD_MSG_FLAG_RESPONSE_PDU);
 
+#if 1
+    objid = malloc(sizeof(oid) * MAX_OID_LEN);
+    if (objid == NULL)
+        return -1;
+#endif
     /*
      * get the fields in the PDU preceding the variable-bindings sequence
      */
@@ -4614,11 +4703,19 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
         data = asn_parse_objid(data, length, &type, objid,
                                &pdu->enterprise_length);
         if (data == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         pdu->enterprise =
             (oid *) malloc(pdu->enterprise_length * sizeof(oid));
         if (pdu->enterprise == NULL) {
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         }
         memmove(pdu->enterprise, objid,
                 pdu->enterprise_length * sizeof(oid));
@@ -4630,7 +4727,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
         data = asn_parse_string(data, length, &type,
                                 (u_char *) pdu->agent_addr, &four);
         if (data == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
 
         /*
          * generic trap 
@@ -4638,7 +4739,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
         data = asn_parse_int(data, length, &type, (long *) &pdu->trap_type,
                              sizeof(pdu->trap_type));
         if (data == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         /*
          * specific trap 
          */
@@ -4647,7 +4752,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                           (long *) &pdu->specific_type,
                           sizeof(pdu->specific_type));
         if (data == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
 
         /*
          * timestamp  
@@ -4655,7 +4764,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
         data = asn_parse_unsigned_int(data, length, &type, &pdu->time,
                                       sizeof(pdu->time));
         if (data == NULL)
+#if 0
             return -1;
+#else
+            goto err;
+#endif
 
         break;
 
@@ -4686,7 +4799,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                              sizeof(pdu->reqid));
         DEBUGINDENTLESS();
         if (data == NULL) {
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         }
 
         /*
@@ -4697,7 +4814,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                              sizeof(pdu->errstat));
         DEBUGINDENTLESS();
         if (data == NULL) {
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         }
 
         /*
@@ -4708,14 +4829,22 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
                              sizeof(pdu->errindex));
         DEBUGINDENTLESS();
         if (data == NULL) {
+#if 0
             return -1;
+#else
+            goto err;
+#endif
         }
 	break;
 
     default:
         snmp_log(LOG_ERR, "Bad PDU type received: 0x%.2x\n", pdu->command);
         snmp_increment_statistic(STAT_SNMPINASNPARSEERRS);
+#if 0
         return -1;
+#else
+        goto err;
+#endif
     }
 
     /*
@@ -4732,6 +4861,10 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
      * get each varBind sequence 
      */
     while ((int) *length > 0) {
+#if 1
+        if (++vpcount > SNMP_MAX_CMDLINE_OIDS)
+            goto fail;
+#endif
         vp = SNMP_MALLOC_TYPEDEF(netsnmp_variable_list);
         if (NULL == vp)
             goto fail;
@@ -4872,6 +5005,9 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
         vplast = vp;
         vp = NULL;
     }
+#if 1
+    free(objid);
+#endif
     return 0;
 
   fail:
@@ -4883,6 +5019,10 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
     if (vp)
         snmp_free_var(vp);
 
+#if 1
+  err:
+    free(objid);
+#endif
     return -1;
 }
 
@@ -4896,7 +5036,11 @@ snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data, size_t * length)
 u_char         *
 snmpv3_scopedPDU_parse(netsnmp_pdu *pdu, u_char * cp, size_t * length)
 {
+#if 0
     u_char          tmp_buf[SNMP_MAX_MSG_SIZE];
+#else
+    u_char          tmp_buf[SNMP_MAX_CONTEXT_SIZE];
+#endif
     size_t          tmp_buf_len;
     u_char          type;
     size_t          asn_len;
@@ -4938,6 +5082,12 @@ snmpv3_scopedPDU_parse(netsnmp_pdu *pdu, u_char * cp, size_t * length)
 
     if (tmp_buf_len) {
         pdu->contextName = (char *) malloc(tmp_buf_len);
+#if 1
+        if (pdu->contextName == NULL) {
+            ERROR_MSG("out of memory");
+            return NULL;
+        }
+#endif
         memmove(pdu->contextName, tmp_buf, tmp_buf_len);
         pdu->contextNameLen = tmp_buf_len;
     } else {
@@ -6735,12 +6885,20 @@ snmp_resend_request(struct session_list *slp, netsnmp_request_list *orp,
         return 0;
     }
 
+#if 0
     if ((pktbuf = (u_char *)malloc(2048)) == NULL) {
+#else
+    if ((pktbuf = (u_char *)malloc(SNMP_MAX_LEN)) == NULL) {
+#endif
         DEBUGMSGTL(("sess_resend",
                     "couldn't malloc initial packet buffer\n"));
         return 0;
     } else {
+#if 0
         pktbuf_len = 2048;
+#else
+        pktbuf_len = SNMP_MAX_LEN;
+#endif
     }
 
     if (incr_retries) {
@@ -7167,7 +7325,7 @@ netsnmp_oid_find_prefix(const oid * in_name1, size_t len1,
     min_size = SNMP_MIN(len1, len2);
     for(i = 0; i < (int)min_size; i++) {
         if (in_name1[i] != in_name2[i])
-            return i;    /* 'í' is the first differing subidentifier
+            return i;    /* 'i' is the first differing subidentifier
                             So the common prefix is 0..(i-1), of length i */
     }
     return min_size;	/* The shorter OID is a prefix of the longer, and
@@ -7700,7 +7858,11 @@ snmp_add_var(netsnmp_pdu *pdu,
 #ifndef NETSNMP_DISABLE_MIB_LOADING
   type_error:
     {
+#if 0
         char            error_msg[256];
+#else
+        char            error_msg[80];
+#endif
         char            undef_msg[32];
         const char     *var_type;
         switch (tp->type) {

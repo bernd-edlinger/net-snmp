@@ -206,7 +206,11 @@ netsnmp_parse_args(int argc,
     char           *Apsz = NULL;
     char           *Xpsz = NULL;
     char           *Cpsz = NULL;
+#if 0
     char            Opts[BUF_SIZE];
+#else
+    char            Opts[80];
+#endif
     int             zero_sensitive = !( flags & NETSNMP_PARSE_ARGS_NOZERO );
     char           *backup_NETSNMP_DS_LIB_OUTPUT_PRECISION = NULL;
 
@@ -330,6 +334,9 @@ netsnmp_parse_args(int argc,
             break;
 
         case 's':
+#if 1
+            free(session->localname);
+#endif
             session->localname = strdup(optarg);
             break;
 
@@ -365,11 +372,21 @@ netsnmp_parse_args(int argc,
 
         case 'T':
         {
+#if 0
             char leftside[SNMP_MAXBUF_MEDIUM], rightside[SNMP_MAXBUF_MEDIUM];
+#else
+            char leftside[80], rightside[80];
+#endif
             char *tmpcp, *tmpopt;
             
             /* ensure we have a proper argument */
             tmpopt = strdup(optarg);
+#if 1
+            if (!tmpopt) {
+                ret = NETSNMP_PARSE_ARGS_ERROR_USAGE;
+                goto out;
+            }
+#endif
             tmpcp = strchr(tmpopt, '=');
             if (!tmpcp) {
                 fprintf(stderr, "-T expects a NAME=VALUE pair.\n");
@@ -436,6 +453,9 @@ netsnmp_parse_args(int argc,
                     goto out;
 		}
 	    } else {
+#if 1
+                SNMP_FREE(Cpsz);
+#endif
 		Cpsz = strdup(optarg);
 	    }
             break;

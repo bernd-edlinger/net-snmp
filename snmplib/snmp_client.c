@@ -273,8 +273,17 @@ snmp_clone_var(netsnmp_variable_list * var, netsnmp_variable_list * newvar)
                 newvar->val.string = newvar->buf;
             else {
                 newvar->val.string = (u_char *) malloc(var->val_len);
+#if 0
                 if (!newvar->val.string)
+#else
+                if (!newvar->val.string) {
+                    if (newvar->name != newvar->name_loc)
+                        free(newvar->name);
+#endif
                     return 1;
+#if 1
+                }
+#endif
             }
             memmove(newvar->val.string, var->val.string, var->val_len);
         } else {                /* fix the pointer to new local store */
@@ -397,6 +406,9 @@ _clone_pdu_header(netsnmp_pdu *pdu)
         || snmp_clone_mem((void **) &newpdu->transport_data,
                           pdu->transport_data,
                           pdu->transport_data_length)) {
+#if 1
+        newpdu->securityStateRef = NULL;
+#endif
         snmp_free_pdu(newpdu);
         return NULL;
     }

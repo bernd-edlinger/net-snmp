@@ -139,7 +139,15 @@ static struct tree *_get_realloc_symbol(const oid * objid, size_t objidlen,
                                         int allow_realloc,
                                         int *buf_overflow,
                                         struct index_list *in_dices,
+#if 0
                                         size_t * end_of_known);
+#else
+                                        size_t * end_of_known, int depth);
+static struct tree *_realloc_objid_tree(u_char ** buf, size_t * buf_len,
+                                        size_t * out_len, int allow_realloc,
+                                        int *buf_overflow, const oid * objid,
+                                        size_t objidlen, int depth);
+#endif
 
 static int      print_tree_node(u_char ** buf, size_t * buf_len,
                                 size_t * out_len, int allow_realloc,
@@ -1255,7 +1263,11 @@ sprint_realloc_hinted_integer(u_char ** buf, size_t * buf_len,
                               long val, const char decimaltype,
                               const char *hint, const char *units)
 {
+#if 0
     char            fmt[10] = "%l@", tmp[256];
+#else
+    char            fmt[10] = "%l@", tmp[80];
+#endif
     int             shift = 0, len, negative = 0;
 
     if (hint[0] == 'd') {
@@ -1286,9 +1298,17 @@ sprint_realloc_hinted_integer(u_char ** buf, size_t * buf_len,
 	*bp = 0;
     }
     else
+#if 0
 	sprintf(tmp, fmt, val);
+#else
+	snprintf(tmp, sizeof(tmp) - 2, fmt, val);
+#endif
 
+#if 0
     if (shift != 0) {
+#else
+    if (shift > 0) {
+#endif
         len = strlen(tmp);
         if (shift <= len) {
             tmp[len + 1] = 0;
@@ -1297,7 +1317,11 @@ sprint_realloc_hinted_integer(u_char ** buf, size_t * buf_len,
                 len--;
             }
             tmp[len] = '.';
+#if 0
         } else {
+#else
+        } else if (shift < (int)sizeof(tmp) - 1) {
+#endif
             tmp[shift + 1] = 0;
             while (shift) {
                 if (len-- > 0) {
@@ -2759,6 +2783,10 @@ netsnmp_init_mib(void)
     } else {
         env_var = strdup(env_var);
     }
+#if 1
+    if (env_var == NULL)
+        return;
+#endif
     if (env_var && ((*env_var == '+') || (*env_var == '-'))) {
         entry =
             (char *) malloc(strlen(NETSNMP_DEFAULT_MIBS) + strlen(env_var) + 2);
@@ -2855,7 +2883,11 @@ netsnmp_init_mib(void)
     /*
      * remove trailing dot 
      */
+#if 0
     if (Prefix) {
+#else
+    if (Prefix && Prefix[0]) {
+#endif
         env_var = &Prefix[strlen(Prefix) - 1];
         if (*env_var == '.')
             *env_var = '\0';
@@ -3171,6 +3203,17 @@ netsnmp_sprint_realloc_objid_tree(u_char ** buf, size_t * buf_len,
                                   size_t * out_len, int allow_realloc,
                                   int *buf_overflow,
                                   const oid * objid, size_t objidlen)
+#if 1
+{
+    return _realloc_objid_tree(buf, buf_len, out_len, allow_realloc,
+                               buf_overflow, objid, objidlen, 0);
+}
+
+static struct tree *_realloc_objid_tree(u_char ** buf, size_t * buf_len,
+                                        size_t * out_len, int allow_realloc,
+                                        int *buf_overflow, const oid * objid,
+                                        size_t objidlen, int depth)
+#endif
 {
     u_char         *tbuf = NULL, *cp = NULL;
     size_t          tbuf_len = 512, tout_len = 0;
@@ -3189,7 +3232,11 @@ netsnmp_sprint_realloc_objid_tree(u_char ** buf, size_t * buf_len,
     subtree = _get_realloc_symbol(objid, objidlen, subtree,
                                   &tbuf, &tbuf_len, &tout_len,
                                   allow_realloc, &tbuf_overflow, NULL,
+#if 0
                                   &midpoint_offset);
+#else
+                                  &midpoint_offset, depth);
+#endif
 
     if (tbuf_overflow) {
         if (!*buf_overflow) {
@@ -3772,7 +3819,15 @@ int
 build_oid(oid ** out, size_t * out_len,
           oid * prefix, size_t prefix_len, netsnmp_variable_list * indexes)
 {
+#if 0
     oid             tmpout[MAX_OID_LEN];
+#else
+    oid            *tmpout;
+
+    tmpout = malloc(sizeof(oid) * MAX_OID_LEN);
+    if (tmpout == NULL)
+        return SNMPERR_GENERR;
+#endif
 
     /*
      * xxx-rks: inefficent. try only building segments to find index len:
@@ -3783,13 +3838,25 @@ build_oid(oid ** out, size_t * out_len,
      *
      * then see if it fits in existing buffer, or realloc buffer.
      */
+#if 0
     if (build_oid_noalloc(tmpout, sizeof(tmpout) / sizeof(tmpout[0]), out_len,
                           prefix, prefix_len, indexes) != SNMPERR_SUCCESS)
         return SNMPERR_GENERR;
+#else
+    if (build_oid_noalloc(tmpout, MAX_OID_LEN, out_len,
+                          prefix, prefix_len, indexes) != SNMPERR_SUCCESS) {
+
+        free(tmpout);
+        return SNMPERR_GENERR;
+    }
+#endif
 
     /** xxx-rks: should free previous value? */
     snmp_clone_mem((void **) out, (void *) tmpout, *out_len * sizeof(oid));
 
+#if 1
+    free(tmpout);
+#endif
     return SNMPERR_SUCCESS;
 }
 
@@ -3828,7 +3895,11 @@ parse_one_oid_index(oid ** oidStart, size_t * oidLen,
                     netsnmp_variable_list * data, int complete)
 {
     netsnmp_variable_list *var = data;
+#if 0
     oid             tmpout[MAX_OID_LEN];
+#else
+    oid            *tmpout;
+#endif
     unsigned int    i;
     unsigned int    uitmp = 0;
 
@@ -3911,6 +3982,11 @@ parse_one_oid_index(oid ** oidStart, size_t * oidLen,
                 return SNMPERR_GENERR;  /* too big and illegal */
 
             if (uitmp > *oidLen) {
+#if 1
+                tmpout = malloc(sizeof(oid) * MAX_OID_LEN);
+                if (tmpout == NULL)
+                    return SNMPERR_GENERR;
+#endif
                 memcpy(tmpout, oidIndex, sizeof(oid) * (*oidLen));
                 memset(&tmpout[*oidLen], 0x00,
                        sizeof(oid) * (uitmp - *oidLen));
@@ -3918,6 +3994,9 @@ parse_one_oid_index(oid ** oidStart, size_t * oidLen,
                                    sizeof(oid) * uitmp);
                 oidIndex += *oidLen;
                 (*oidLen) = 0;
+#if 1
+                free(tmpout);
+#endif
             } else {
                 snmp_set_var_value(var, (u_char *) oidIndex,
                                    sizeof(oid) * uitmp);
@@ -4212,10 +4291,23 @@ _get_realloc_symbol_octet_string(size_t numids, const oid * objid,
 				 size_t * out_len, int allow_realloc,
 				 int *buf_overflow, struct tree* tp)
 {
+#if 0
   netsnmp_variable_list	var = { 0 };
   u_char		buffer[1024];
+#else
+  netsnmp_variable_list	*var;
+  u_char		*buffer;
+#endif
   size_t		i;
 
+#if 1
+  var = malloc(sizeof(netsnmp_variable_list) + MAX_OID_LEN);
+  if (var == NULL)
+    return;
+  memset(var, 0, sizeof(netsnmp_variable_list));
+  buffer = (u_char *)(var + 1);
+  #define var (*var)
+#endif
   for (i = 0; i < numids; i++)
     buffer[i] = (u_char) objid[i];
   var.type = ASN_OCTET_STR;
@@ -4229,6 +4321,10 @@ _get_realloc_symbol_octet_string(size_t numids, const oid * objid,
       *buf_overflow = 1;
     }
   }
+#if 1
+  #undef var
+  free(var);
+#endif
 }
 
 static struct tree *
@@ -4236,7 +4332,12 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
                     struct tree *subtree,
                     u_char ** buf, size_t * buf_len, size_t * out_len,
                     int allow_realloc, int *buf_overflow,
+#if 0
                     struct index_list *in_dices, size_t * end_of_known)
+#else
+                    struct index_list *in_dices, size_t * end_of_known,
+                    int depth)
+#endif
 {
     struct tree    *return_tree = NULL;
     int             extended_index =
@@ -4249,6 +4350,11 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
     if (!objid || !buf) {
         return NULL;
     }
+
+#if 1
+    if (depth > 12)
+        goto finish_it;
+#endif
 
     for (; subtree; subtree = subtree->next_peer) {
         if (*objid == subtree->subid) {
@@ -4294,7 +4400,11 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
                                                   buf, buf_len, out_len,
                                                   allow_realloc,
                                                   buf_overflow, in_dices,
+#if 0
                                                   end_of_known);
+#else
+                                                  end_of_known, depth + 1);
+#endif
             }
 
             if (return_tree != NULL) {
@@ -4550,16 +4660,23 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
             if (extended_index) {
                 if (in_dices->isimplied) {
                     if (!*buf_overflow
+#if 0
                         && !netsnmp_sprint_realloc_objid_tree(buf, buf_len,
                                                               out_len,
                                                               allow_realloc,
                                                               buf_overflow,
                                                               objid,
                                                               numids)) {
+#else
+                        && !_realloc_objid_tree(buf, buf_len, out_len,
+                                                allow_realloc, buf_overflow,
+                                                objid, numids, depth + 1)) {
+#endif
                         *buf_overflow = 1;
                     }
                 } else {
                     if (!*buf_overflow
+#if 0
                         && !netsnmp_sprint_realloc_objid_tree(buf, buf_len,
                                                               out_len,
                                                               allow_realloc,
@@ -4567,13 +4684,22 @@ _get_realloc_symbol(const oid * objid, size_t objidlen,
                                                               objid + 1,
                                                               numids -
                                                               1)) {
+#else
+                        && !_realloc_objid_tree(buf, buf_len, out_len,
+                                                allow_realloc, buf_overflow,
+                                                objid + 1, numids - 1, depth + 1)) {
+#endif
                         *buf_overflow = 1;
                     }
                 }
             } else {
                 _get_realloc_symbol(objid, numids, NULL, buf, buf_len,
                                     out_len, allow_realloc, buf_overflow,
+#if 0
                                     NULL, NULL);
+#else
+                                    NULL, NULL, depth + 1);
+#endif
             }
             objid += (numids);
             objidlen -= (numids);
@@ -5222,6 +5348,10 @@ get_module_node(const char *fname,
      * Isolate the first component of the name ... 
      */
     name = strdup(fname);
+#if 1
+    if (!name)
+        return 0;
+#endif
     cp = strchr(name, '.');
     if (cp != NULL) {
         *cp = '\0';
@@ -5716,7 +5846,11 @@ _add_strings_to_oid(void *tp, char *cp,
 
   bad_id:
     {
+#if 0
         char            buf[256];
+#else
+        char            buf[80];
+#endif
 #ifndef NETSNMP_DISABLE_MIB_LOADING
         if (in_dices)
             snprintf(buf, sizeof(buf), "Index out of range: %s (%s)",
@@ -6190,12 +6324,27 @@ static void parse_hints_ctor(struct parse_hints *ph)
 static int parse_hints_add_result_octet(struct parse_hints *ph, unsigned char octet)
 {
     if (!(ph->result_len < ph->result_max)) {
+#if 0
 	ph->result_max = ph->result_len + 32;
 	if (!ph->result) {
 	    ph->result = (unsigned char *)malloc(ph->result_max);
 	} else {
 	    ph->result = (unsigned char *)realloc(ph->result, ph->result_max);
 	}
+#else
+        int new_result_max = ph->result_len + 32;
+        unsigned char *new_result;
+
+        if (!ph->result) {
+            new_result = (unsigned char *)malloc(new_result_max);
+        } else {
+            new_result = (unsigned char *)realloc(ph->result, new_result_max);
+        }
+        if (!new_result)
+            return 0;
+        ph->result = new_result;
+        ph->result_max = new_result_max;
+#endif
     }
     
     if (!ph->result) {

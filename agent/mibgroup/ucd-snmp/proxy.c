@@ -173,6 +173,9 @@ proxy_parse_config(const char *token, char *line)
      * so this isn't needed. 
      */
     ss = snmp_open(&session);
+#if 1
+    SNMP_FREE(session.community);
+#endif
     /*
      * usm_set_reportErrorOnUnknownID(1); 
      */

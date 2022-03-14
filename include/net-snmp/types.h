@@ -121,7 +121,11 @@ typedef struct variable_list {
    /** the length of the value to be copied into buf */
    size_t          val_len;
    /** buffer to hold the OID */
+#if 0
    oid             name_loc[MAX_OID_LEN];  
+#else
+   oid             name_loc[16];
+#endif
    /** 90 percentile < 40. */
    u_char          buf[40];
    /** (Opaque) hook for additional data */

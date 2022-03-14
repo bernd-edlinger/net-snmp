@@ -157,8 +157,18 @@ get_context_lookup_cache(const char *context) {
     if (!ptr) {
         if (netsnmp_subtree_find_first(context)) {
             ptr = SNMP_MALLOC_TYPEDEF(lookup_cache_context);
+#if 1
+            if (!ptr)
+                return NULL;
+#endif
             ptr->next = thecontextcache;
             ptr->context = strdup(context);
+#if 1
+            if (!ptr->context) {
+                SNMP_FREE(ptr);
+                return NULL;
+            }
+#endif
             thecontextcache = ptr;
         } else {
             return NULL;
@@ -357,6 +367,12 @@ add_subtree(netsnmp_subtree *new_tree, const char *context_name)
     ptr->next = context_subtrees;
     ptr->first_subtree = new_tree;
     ptr->context_name = strdup(context_name);
+#if 1
+    if (!ptr->context_name) {
+        SNMP_FREE(ptr);
+        return NULL;
+    }
+#endif
     context_subtrees = ptr;
 
     return ptr->first_subtree;
@@ -502,6 +518,10 @@ netsnmp_subtree_deepcopy(netsnmp_subtree *a)
     b->start_a = snmp_duplicate_objid(a->start_a, a->start_len);
     b->end_a   = snmp_duplicate_objid(a->end_a,   a->end_len);
     b->label_a = strdup(a->label_a);
+#if 1
+    b->reginfo = NULL;
+    b->variables = NULL;
+#endif
     
     if (b->name_a == NULL || b->start_a == NULL || 
 	b->end_a  == NULL || b->label_a == NULL) {
@@ -771,12 +791,28 @@ netsnmp_subtree_load(netsnmp_subtree *new_sub, const char *context_name)
             oid iso[1]             = { 1 };
             oid joint_ccitt_iso[1] = { 2 };
             inloop = 1;
+#if 0
             netsnmp_register_null_context(snmp_duplicate_objid(ccitt, 1), 1,
                                           context_name);
             netsnmp_register_null_context(snmp_duplicate_objid(iso, 1), 1,
                                           context_name);
             netsnmp_register_null_context(snmp_duplicate_objid(joint_ccitt_iso, 1),
                                           1, context_name);
+#else
+            if (netsnmp_register_null_context(snmp_duplicate_objid(ccitt, 1), 1,
+                                              context_name) != MIB_REGISTERED_OK ||
+                netsnmp_register_null_context(snmp_duplicate_objid(iso, 1), 1,
+                                              context_name) != MIB_REGISTERED_OK ||
+                netsnmp_register_null_context(snmp_duplicate_objid(joint_ccitt_iso, 1),
+                                              1, context_name) != MIB_REGISTERED_OK) {
+                inloop = 0;
+                while ((tree1 = netsnmp_subtree_find_first(context_name)) != NULL) {
+                    netsnmp_remove_subtree(tree1);
+                    netsnmp_subtree_free(tree1);
+                }
+                return MIB_REGISTRATION_FAILED;
+            }
+#endif
             inloop = 0;
         }
     }
@@ -822,7 +858,12 @@ netsnmp_subtree_load(netsnmp_subtree *new_sub, const char *context_name)
 	    if (new_sub->prev) {
                 netsnmp_subtree_change_next(new_sub->prev, new_sub);
 	    } else {
+#if 0
 		netsnmp_subtree_replace_first(new_sub, context_name);
+#else
+                if (!netsnmp_subtree_replace_first(new_sub, context_name))
+                    return MIB_REGISTRATION_FAILED;
+#endif
 	    }
 
             netsnmp_subtree_change_next(new_sub, tree2);
@@ -868,7 +909,12 @@ netsnmp_subtree_load(netsnmp_subtree *new_sub, const char *context_name)
 
 	case -1:
 	    /*  Existing subtree contains new one.  */
+#if 0
 	    netsnmp_subtree_split(tree1, new_sub->end_a, new_sub->end_len);
+#else
+            if (!netsnmp_subtree_split(tree1, new_sub->end_a, new_sub->end_len))
+                return MIB_REGISTRATION_FAILED;
+#endif
 	    /* Fall Through */
 
 	case  0:
@@ -938,13 +984,27 @@ netsnmp_subtree_load(netsnmp_subtree *new_sub, const char *context_name)
             {
                 netsnmp_subtree *new2 =
                     netsnmp_subtree_split(new_sub, tree1->end_a,tree1->end_len);
+#if 0
                 int res = netsnmp_subtree_load(new_sub, context_name);
+#else
+                int res;
+
+                if (new2 == NULL)
+                    return MIB_REGISTRATION_FAILED;
+                res = netsnmp_subtree_load(new_sub, context_name);
+#endif
                 if (res != MIB_REGISTERED_OK) {
                     netsnmp_remove_subtree(new2);
                     netsnmp_subtree_free(new2);
                     return res;
                 }
+#if 0
                 return netsnmp_subtree_load(new2, context_name);
+#else
+                res = netsnmp_subtree_load(new2, context_name);
+                if (res != MIB_REGISTERED_OK)
+                    netsnmp_subtree_free(new2);
+#endif
             }
         }
     }

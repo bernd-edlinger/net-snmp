@@ -371,6 +371,10 @@ ipAddressTable_container_load(netsnmp_container *container)
     ipaddress_container =
         netsnmp_access_ipaddress_container_load(NULL,
                                                 NETSNMP_ACCESS_IPADDRESS_LOAD_ADDL_IDX_BY_ADDR);
+#if 1
+    if (ipaddress_container == NULL)
+        return MFD_ERROR;
+#endif
     /*
      * we just got a fresh copy of interface data. compare it to
      * what we've already got, and make any adjustments, saving

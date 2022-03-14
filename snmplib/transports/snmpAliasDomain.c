@@ -99,6 +99,10 @@ netsnmp_alias_ctor(void)
     aliasDomain.name = netsnmp_snmpALIASDomain;
     aliasDomain.name_length = sizeof(netsnmp_snmpALIASDomain) / sizeof(oid);
     aliasDomain.prefix = (const char **)calloc(2, sizeof(char *));
+#if 1
+    if (aliasDomain.prefix == NULL)
+        return;
+#endif
     aliasDomain.prefix[0] = "alias";
 
     aliasDomain.f_create_from_tstring_new = netsnmp_alias_create_tstring;

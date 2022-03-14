@@ -164,8 +164,10 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
         entry = netsnmp_access_systemstats_entry_create(1, 0,
                     "ipSystemStatsTable.ipv4");
         if(NULL == entry) {
+#if 0
             netsnmp_access_systemstats_container_free(container,
                                                       NETSNMP_ACCESS_SYSTEMSTATS_FREE_NOFLAGS);
+#endif
             return -3;
         }
 

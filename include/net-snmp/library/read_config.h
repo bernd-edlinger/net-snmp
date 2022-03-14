@@ -9,7 +9,11 @@
 extern          "C" {
 #endif
 
+#if 0
 #define STRINGMAX 1024
+#else
+#define STRINGMAX 80
+#endif
 
 #define NORMAL_CONFIG 0
 #define PREMIB_CONFIG 1

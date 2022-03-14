@@ -104,8 +104,13 @@ se_read_conf(const char *word, const char *cptr)
     int major, minor;
     int value;
     const char *cp, *cp2;
+#if 0
     char e_name[BUFSIZ];
     char e_enum[  BUFSIZ];
+#else
+    char e_name[80];
+    char e_enum[80];
+#endif
 
     if (!cptr || *cptr=='\0')
         return;
@@ -134,7 +139,11 @@ se_read_conf(const char *word, const char *cptr)
                 break;
             }
             cp2 = e_enum;
+#if 0
             while (*(cp2++) != ':')
+#else
+            while (*cp2 && *(cp2++) != ':')
+#endif
                 ;
             se_add_pair(major, minor, strdup(cp2), value);
             if (!cp)
@@ -150,7 +159,11 @@ se_read_conf(const char *word, const char *cptr)
                 break;
             }
             cp2 = e_enum;
+#if 0
             while (*(cp2++) != ':')
+#else
+            while (*cp2 && *(cp2++) != ':')
+#endif
                 ;
             se_add_pair_to_slist(e_name, strdup(cp2), value);
             if (!cp)
@@ -164,8 +177,13 @@ se_store_enum_list(struct snmp_enum_list *new_list,
                    const char *token, const char *type)
 {
     struct snmp_enum_list *listp = new_list;
+#if 0
     char line[2048];
     char buf[512];
+#else
+    char line[160];
+    char buf[80];
+#endif
     int  len;
 
     snprintf(line, sizeof(line), "enum %s", token);
@@ -176,11 +194,19 @@ se_store_enum_list(struct snmp_enum_list *new_list,
          * If this is not sufficient to include the next enum,
          *   then save the line so far, and start again.
          */
+#if 0
 	len = sizeof(line) - strlen(line);
+#else
+	len = sizeof(line) - strlen(line) - 1;
+#endif
 	if ((int)strlen(buf) > len) {
 	    read_config_store(type, line);
             snprintf(line, sizeof(line), "enum %s", token);
+#if 0
 	    len = sizeof(line) - strlen(line);
+#else
+	    len = sizeof(line) - strlen(line) - 1;
+#endif
 	}
 
 	strncat(line, buf, len);
@@ -289,6 +315,11 @@ se_add_pair_to_list(struct snmp_enum_list **list, char *label, int value)
 {
     struct snmp_enum_list *lastnode = NULL, *tmp;
 
+#if 1
+    if (!label)
+        return SE_NOMEM;
+#endif
+
     if (!list)
         return SE_DNE;
 
@@ -387,7 +418,11 @@ se_add_pair_to_slist(const char *listname, char *label, int value)
     int             created = (list) ? 1 : 0;
     int             ret = se_add_pair_to_list(&list, label, value);
 
+#if 0
     if (!created) {
+#else
+    if (!created && list) {
+#endif
         struct snmp_enum_list_str *sptr =
             SNMP_MALLOC_STRUCT(snmp_enum_list_str);
         if (!sptr) {
@@ -396,6 +431,13 @@ se_add_pair_to_slist(const char *listname, char *label, int value)
         }
         sptr->next = sliststorage;
         sptr->name = strdup(listname);
+#if 1
+        if (!sptr->name) {
+            SNMP_FREE(sptr);
+            free_enum_list(list);
+            return SE_NOMEM;
+        }
+#endif
         sptr->list = list;
         sliststorage = sptr;
     }

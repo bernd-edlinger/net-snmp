@@ -332,6 +332,7 @@ asn_parse_nlength(u_char *pkt, size_t pkt_len, u_long *data_len)
 {
     int len_len;
 
+#if 0
     if (pkt_len < 1)
         return NULL;               /* always too short */
 
@@ -339,6 +340,15 @@ asn_parse_nlength(u_char *pkt, size_t pkt_len, u_long *data_len)
         return NULL;
 
     *data_len = 0;
+#else
+    if (NULL == data_len)
+        return NULL;
+
+    *data_len = 0;
+
+    if (NULL == pkt || pkt_len < 1)
+        return NULL;               /* always too short */
+#endif
 
     if (*pkt & 0x80) {
         /*
@@ -3098,7 +3108,12 @@ asn_realloc_rbuild_string(u_char ** pkt, size_t * pkt_len,
     }
 
     *offset += strlength;
+#if 0
     memcpy(*pkt + *pkt_len - *offset, str, strlength);
+#else
+    if (strlength != 0)
+        memcpy(*pkt + *pkt_len - *offset, str, strlength);
+#endif
 
     if (asn_realloc_rbuild_header
         (pkt, pkt_len, offset, r, type, strlength)) {

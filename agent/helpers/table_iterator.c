@@ -230,8 +230,16 @@ netsnmp_get_table_iterator_handler(netsnmp_iterator_info *iinfo)
         netsnmp_create_handler(TABLE_ITERATOR_NAME,
                                netsnmp_table_iterator_helper_handler);
 
+#if 0
     if (!me)
         return NULL;
+#else
+    if (!me) {
+        if (iinfo->flags & NETSNMP_HANDLER_OWNS_IINFO)
+            netsnmp_iterator_delete_table(iinfo);
+        return NULL;
+    }
+#endif
 
     me->myvoid = iinfo;
     if (iinfo->flags & NETSNMP_HANDLER_OWNS_IINFO)

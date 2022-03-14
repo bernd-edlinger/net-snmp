@@ -43,7 +43,11 @@ SOFTWARE.
     /*
      * Space for character representation of an object identifier 
      */
+#if 0
 #define SPRINT_MAX_LEN		2560
+#else
+#define SPRINT_MAX_LEN		80
+#endif
 
 
 #ifndef NULL
